@@ -1,3 +1,4 @@
+package zara;
 public final class Token {
   
 	  private final TokenType type;
