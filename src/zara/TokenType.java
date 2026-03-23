@@ -1,3 +1,4 @@
+package zara;
 public enum TokenType {
 	// Keywords
     SET, SHOW, WHEN, LOOP,
