@@ -1,7 +1,5 @@
 package zara;
 import java.util.List;
-import zara.token.Token;
-import zara.token.TokenType;
 
 public class ParserContext {
     private final List<Token> tokens;
