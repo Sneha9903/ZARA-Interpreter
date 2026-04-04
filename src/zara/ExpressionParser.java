@@ -1,6 +1,6 @@
 package zara;
 
-
+import java.beans.Expression;
 
 public class ExpressionParser {
     private final ParserContext context;
@@ -10,6 +10,9 @@ public class ExpressionParser {
     public Expression parse() {
         return parseExpression();
     }
+    private Expression parseExpression() {
+    return parseEquality();
+}
     private Expression parseEquality() {
         Expression expression = parseComparison();
 
