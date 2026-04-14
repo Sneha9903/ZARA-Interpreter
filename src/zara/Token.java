@@ -1,7 +1,7 @@
 package zara;
 public final class Token {
   
-	  private final TokenType type;
+	private final TokenType type;
     private final String value;
     private final int line;
 
@@ -18,6 +18,10 @@ public final class Token {
 
     @Override
     public String toString() {
-        return type + " (" + value + ") at line " + line;
+        return "Token{" +
+                "type=" + type +
+                ", value='" + value + '\'' +
+                ", line=" + line +
+                '}';
     }
 }
