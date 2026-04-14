@@ -6,10 +6,8 @@ public enum TokenType {
     // Literals and Identifiers
     NUMBER, STRING, IDENTIFIER,
     
-    // Operators and Punctuation
-    EQUALS, PLUS, MINUS, STAR, SLASH, 
-    GREATER, LESS, COLON, NEWLINE,
-    
-    // End of File
-    EOF
+    ASSIGN, PLUS, MINUS, MULTIPLY, DIVIDE, // Operators
+    GREATER, LESS, EQUAL_EQUAL, 		   // Relational
+    COLON,                                 // Punctuation
+    NEWLINE, INDENT, DEDENT, EOF          // Structural
 }
