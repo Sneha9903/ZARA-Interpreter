@@ -34,7 +34,7 @@ public class InstructionParser {
 
     private Instruction parseAssignInstruction() {
         Token name = context.consume(TokenType.IDENTIFIER, "Expected variable name after 'set'");
-        context.consume(TokenType.EQUAL, "Expected '=' after variable name");
+        context.consume(TokenType.ASSIGN, "Expected '=' after variable name");
 
         Expression expression = expressionParser.parseExpression();
         return new AssignInstruction(name.getValue(), expression);
@@ -55,7 +55,7 @@ public class InstructionParser {
 
     private Instruction parseRepeatInstruction() {
         Expression count = expressionParser.parseExpression();
-        context.consume(TokenType.COLON, "Expected ':' after loop count");
+        context.consume(TokenType.COLON, "Expected ':' after repeat count");
 
         List<Instruction> body = parseBlock();
         return new RepeatInstruction(count, body);
