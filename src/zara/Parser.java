@@ -1,20 +1,27 @@
 package zara;
+import java.util.ArrayList;
 import java.util.List;
+
 public class Parser {
-// Store: the token list and a current index tracking which token
-// you are looking at right now.
-public Parser(List<Token> tokens) {
-// Store the token list.
-}
-public List<Instruction> parse() {
-// Read through tokens and build the list of Instructions.
-// Return the completed list.
-}
-// You will need several private helper methods here.
-// A natural split for handling operator precedence:
-// parseExpression() -- handles + and -
-// parseTerm() -- handles * and /
-// parsePrimary() -- handles a single number, string, or variable
-// parseExpression calls parseTerm; parseTerm calls parsePrimary.
-// This chain gives * and / higher priority than + and - automatically.
+    private final ParserContext context;
+    private final InstructionParser instructionParser;
+
+    public Parser(List<Token> tokens) {
+        this.context = new ParserContext(tokens);
+        ExpressionParser expressionParser = new ExpressionParser(context);
+        this.instructionParser = new InstructionParser(context, expressionParser);
+    }
+
+    public List<Instruction> parse() {
+        List<Instruction> instructions = new ArrayList<>();
+
+        context.skipNewlines();
+
+        while (!context.isAtEnd()) {
+            instructions.add(instructionParser.parseInstruction());
+            context.skipNewlines();
+        }
+
+        return instructions;
+    }
 }
