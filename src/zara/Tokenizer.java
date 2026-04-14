@@ -2,116 +2,125 @@ package zara;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Stack;
 
 public class Tokenizer {
     private final String source;
-    private final List<Token> tokens = new ArrayList<>();
     private int current = 0;
     private int line = 1;
+    private final List<Token> tokens = new ArrayList<>();
+    private final Stack<Integer> indentStack = new Stack<>();
+    private boolean atLineStart = true;
 
     public Tokenizer(String source) {
-        this.source = source; [cite: 193]
+        this.source = source;
+        this.indentStack.push(0);
     }
 
     public List<Token> tokenize() {
         while (!isAtEnd()) {
-            char c = advance(); [cite: 196]
+            if (atLineStart) {
+                handleIndentation();
+                atLineStart = false;
+                if (isAtEnd()) break;
+            }
+
+            char c = advance();
 
             switch (c) {
-                // Single-character symbols
-                case '=': addToken(TokenType.EQUALS); break;
-                case '+': addToken(TokenType.PLUS); break;
-                case '-': addToken(TokenType.MINUS); break;
-                case '*': addToken(TokenType.STAR); break;
-                case '/': addToken(TokenType.SLASH); break;
-                case '>': addToken(TokenType.GREATER); break;
-                case '<': addToken(TokenType.LESS); break;
-                case ':': addToken(TokenType.COLON); break;
-
-                // Whitespace & Line tracking
-                case ' ':
-                case '\r':
-                case '\t':
+                case ' ': case '\t': case '\r':
+                    // Just ignore inline whitespace
                     break;
                 case '\n':
-                    addToken(TokenType.NEWLINE); [cite: 70]
+                    tokens.add(new Token(TokenType.NEWLINE, "\\n", line));
                     line++;
+                    atLineStart = true;
                     break;
-
-                // String Literals (e.g., "hello")
-                case '"': scanString(); break;
-
+                case '=':
+                    if (match('=')) {
+                        tokens.add(new Token(TokenType.EQUAL_EQUAL, "==", line));
+                    } else {
+                        tokens.add(new Token(TokenType.ASSIGN, "=", line));
+                    }
+                    break;
+                case ':': tokens.add(new Token(TokenType.COLON, ":", line)); break;
+                case '+': tokens.add(new Token(TokenType.PLUS, "+", line)); break;
+                case '-': tokens.add(new Token(TokenType.MINUS, "-", line)); break;
+                case '*': tokens.add(new Token(TokenType.MULTIPLY, "*", line)); break;
+                case '/': tokens.add(new Token(TokenType.DIVIDE, "/", line)); break;
+                case '>': tokens.add(new Token(TokenType.GREATER, ">", line)); break;
+                case '<': tokens.add(new Token(TokenType.LESS, "<", line)); break;
+                case '"': string(); break;
                 default:
-                    if (Character.isDigit(c)) {
-                        scanNumber(); [cite: 69]
-                    } else if (c == '$' || Character.isLetter(c)) {
-                        scanIdentifierOrKeyword(); [cite: 69]
+                    if (isDigit(c)) {
+                        number();
+                    } else if (isAlpha(c)) {
+                        identifier();
                     } else {
                         throw new RuntimeException("Unexpected character '" + c + "' at line " + line);
                     }
-                    break;
             }
         }
 
-        tokens.add(new Token(TokenType.EOF, "", line)); [cite: 198]
+        // Add trailing dedents
+        while (indentStack.size() > 1) {
+            indentStack.pop();
+            tokens.add(new Token(TokenType.DEDENT, "", line));
+        }
+
+        tokens.add(new Token(TokenType.EOF, "", line));
         return tokens;
     }
 
-    // --- Helper Methods ---
-
-    private void scanNumber() {
-        int start = current - 1; 
-        while (Character.isDigit(peek())) advance();
-
-        // Handle decimals
-        if (peek() == '.' && Character.isDigit(peekNext())) {
-            advance(); // consume the '.'
-            while (Character.isDigit(peek())) advance();
+    private void handleIndentation() {
+        int spaces = 0;
+        int peekCurrent = current;
+        while (peekCurrent < source.length() && source.charAt(peekCurrent) == ' ') {
+            spaces++;
+            peekCurrent++;
+        }
+        
+        // Skip empty lines or lines with only comments (none in Zara but ignoring empty lines is good)
+        if (peekCurrent < source.length() && (source.charAt(peekCurrent) == '\n' || source.charAt(peekCurrent) == '\r')) {
+            // It's an empty line, do not process indentation
+            return;
         }
 
-        String value = source.substring(start, current);
-        tokens.add(new Token(TokenType.NUMBER, value, line)); [cite: 72]
-    }
+        current = peekCurrent;
 
-    private void scanString() {
-        int start = current;
-        while (peek() != '"' && !isAtEnd()) {
-            if (peek() == '\n') line++;
-            advance();
+        int currentIndent = indentStack.peek();
+        if (spaces > currentIndent) {
+            indentStack.push(spaces);
+            tokens.add(new Token(TokenType.INDENT, "", line));
+        } else if (spaces < currentIndent) {
+            while (indentStack.peek() > spaces) {
+                indentStack.pop();
+                tokens.add(new Token(TokenType.DEDENT, "", line));
+            }
+            if (indentStack.peek() != spaces) {
+                throw new RuntimeException("Inconsistent indentation at line " + line);
+            }
         }
-
-        if (isAtEnd()) throw new RuntimeException("Unterminated string at line " + line);
-
-        advance(); // The closing "
-        String value = source.substring(start, current - 1);
-        tokens.add(new Token(TokenType.STRING, value, line)); [cite: 72]
     }
 
-    private void scanIdentifierOrKeyword() {
-        int start = current - 1;
-        while (Character.isLetterOrDigit(peek()) || peek() == '$') advance();
-
-        String text = source.substring(start, current);
-
-        // Check if the word is a ZARA keyword [cite: 29]
-        TokenType type = switch (text) {
-            case "set"  -> TokenType.SET;
-            case "show" -> TokenType.SHOW;
-            case "when" -> TokenType.WHEN;
-            case "loop" -> TokenType.LOOP;
-            default     -> TokenType.IDENTIFIER;
-        };
-
-        tokens.add(new Token(type, text, line)); [cite: 72]
+    private boolean match(char expected) {
+        if (isAtEnd()) return false;
+        if (source.charAt(current) != expected) return false;
+        current++;
+        return true;
     }
 
-    // --- Navigation Methods ---
+    private char advance() {
+        return source.charAt(current++);
+    }
 
-    private char advance() { return source.charAt(current++); }
-    
-    private char peek() { 
+    private boolean isAtEnd() {
+        return current >= source.length();
+    }
+
+    private char peek() {
         if (isAtEnd()) return '\0';
-        return source.charAt(current); 
+        return source.charAt(current);
     }
 
     private char peekNext() {
@@ -119,10 +128,60 @@ public class Tokenizer {
         return source.charAt(current + 1);
     }
 
-    private boolean isAtEnd() { return current >= source.length(); }
+    private boolean isDigit(char c) {
+        return c >= '0' && c <= '9';
+    }
 
-    private void addToken(TokenType type) {
-        String text = source.substring(current - 1, current);
-        tokens.add(new Token(type, text, line)); [cite: 65, 75]
+    private boolean isAlpha(char c) {
+        return (c >= 'a' && c <= 'z') ||
+               (c >= 'A' && c <= 'Z') ||
+                c == '_';
+    }
+
+    private boolean isAlphaNumeric(char c) {
+        return isAlpha(c) || isDigit(c);
+    }
+
+    private void string() {
+        int start = current - 1;
+        while (!isAtEnd() && peek() != '"') {
+            if (peek() == '\n') line++;
+            advance();
+        }
+        if (isAtEnd()) {
+            throw new RuntimeException("Unterminated string at line " + line);
+        }
+        advance(); // consume the closing "
+        String value = source.substring(start + 1, current - 1);
+        tokens.add(new Token(TokenType.STRING, value, line));
+    }
+
+    private void number() {
+        int start = current - 1;
+        while (isDigit(peek())) advance();
+        
+        if (peek() == '.' && isDigit(peekNext())) {
+            advance(); // consume the "."
+            while (isDigit(peek())) advance();
+        }
+        
+        String value = source.substring(start, current);
+        tokens.add(new Token(TokenType.NUMBER, value, line));
+    }
+
+    private void identifier() {
+        int start = current - 1;
+        while (isAlphaNumeric(peek())) advance();
+        
+        String text = source.substring(start, current);
+        TokenType type;
+        switch (text) {
+            case "set": type = TokenType.SET; break;
+            case "show": type = TokenType.SHOW; break;
+            case "when": type = TokenType.WHEN; break;
+            case "loop": type = TokenType.LOOP; break;
+            default: type = TokenType.IDENTIFIER; break;
+        }
+        tokens.add(new Token(type, text, line));
     }
 }
